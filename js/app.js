@@ -4,15 +4,17 @@ let cur=localStorage.getItem('page')||'Dashboard',busy=false;
 const toast=(m,e)=>{const t=$('#toast');t.textContent=m;t.className=e?'show err':'show';clearTimeout(toast.t);toast.t=setTimeout(()=>t.className='',3000)};
 const eng=p=>(+p.likes||0)+2*(+p.comments||0)+3*(+p.shares||0),hasM=p=>p.likes!==''&&p.likes!=null;
 const canon=u=>{try{const x=new URL(u);return x.hostname.replace(/^www\./,'')+x.pathname.replace(/\/+$/,'')}catch{return(u||'').trim().toLowerCase()}};
-const med=a=>{a=[...a].sort((x,y)=>x-y);return a.length?a[Math.floor(a.length/2)]:0};
+const med=a=>{a=[...a].sort((x,y)=>x-y);const n=a.length;return n?(n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2):0};
+// metric sanitiser (blank/negative/NaN -> blank, else whole number) and text normaliser for duplicate detection
+const nn=v=>{v=num(v);return v===''||!isFinite(v)||v<0?'':Math.round(v)},norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
 const tbl=(h,r)=>r.length?`<table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${r.map(x=>`<tr>${x.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</table>`:'<p class=mut>Nothing here yet.</p>';
 const opts=(a,sel)=>a.map(x=>`<option value="${esc(x[0])}" ${x[0]===sel?'selected':''}>${esc(x[1])}</option>`).join('');
 // engagement relative to the creator's own median (needs 3+ posts with metrics): a comparison, not a "viral" label
-function ratios(posts){const g={},r={};posts.filter(hasM).forEach(p=>(g[p.creatorId||'-']??=[]).push(eng(p)));
- posts.filter(hasM).forEach(p=>{const k=p.creatorId||'-',m=med(g[k]);if(g[k].length>=3&&m>0)r[p.id]=eng(p)/m});return r}
+function ratios(posts){const g={},r={};posts.filter(hasM).forEach(p=>(g[p.creatorId||'-'+p.platform]??=[]).push(eng(p)));
+ posts.filter(hasM).forEach(p=>{const k=p.creatorId||'-'+p.platform,m=med(g[k]);if(g[k].length>=3&&m>0)r[p.id]=eng(p)/m});return r}
 function groupBy(items,kf,r){const g={};items.forEach(x=>{const k=kf(x);if(!k)return;const o=g[k]??={n:0,r:[]};o.n++;const v=r[x.postId||x.id];if(v!=null)o.r.push(v)});
  return Object.entries(g).map(([k,v])=>({k,n:v.n,m:v.r.length,avg:v.r.length?v.r.reduce((a,b)=>a+b,0)/v.r.length:null})).sort((a,b)=>(b.avg??-1)-(a.avg??-1)||b.n-a.n)}
-const gRows=g=>g.map(x=>[esc(x.k),x.n,x.avg==null?'<span class=mut>not enough metrics</span>':x.avg.toFixed(2)+'× <span class=mut>(n='+x.m+')</span>']);
+const gRows=g=>g.map(x=>[esc(x.k),x.n,x.avg==null?'<span class=mut>not enough metrics</span>':x.avg.toFixed(2)+'× <span class=mut>(n='+x.m+(x.m<3?', low sample':'')+')</span>']);
 async function analyse(p){const a=Analyzer.analyze(p);p.hashtags=a.hashtags;p.keywords=a.keywords;await DB.put('posts',p);
  const old=await DB.get('post_analyses',p.id);if(old?.ai)a.ai=old.ai;await DB.put('post_analyses',a);
  if(a.hook){const h=await DB.get('hooks',p.id)||{id:p.id,fav:false,notes:''};Object.assign(h,{text:a.hook,cat:a.hookCat,creatorId:p.creatorId,url:p.url,topic:a.keywords[0]||''});await DB.put('hooks',h)}}
@@ -59,7 +61,7 @@ async Generator(){const g=(await DB.all('generated_content')).sort((a,b)=>b.at-a
  <select name=length><option>short<option selected>medium<option>long</select><select name=hook><option value="">Hook structure: let AI choose${opts(hs.filter(x=>x.fav).map(x=>[x.cat+': '+x.text,'★ '+x.text.slice(0,60)]))}</select><button class=full>Generate</button></form>
  ${g.map(x=>`<div class=card><span class=mut>${new Date(x.at).toLocaleString()} · ${esc(x.topic)}</span> <button class=s data-act=delGen data-id=${x.id}>Delete</button><div class=out>${esc(x.text)}</div></div>`).join('')}`},
 async Performance(){const r=(await DB.all('performance_records')).sort((a,b)=>b.at-a.at);
- const grp=k=>{const g={};r.forEach(x=>{(g[x[k]||'—']??=[]).push(eng(x))});return Object.entries(g).map(([a,v])=>[esc(a),v.length,Math.round(v.reduce((s,y)=>s+y,0)/v.length)]).sort((a,b)=>b[2]-a[2])};
+ const grp=k=>{const g={};r.filter(x=>[x.likes,x.comments,x.shares].some(v=>v!==''&&v!=null)).forEach(x=>{(g[x[k]||'—']??=[]).push(eng(x))});return Object.entries(g).map(([a,v])=>[esc(a),v.length,Math.round(v.reduce((s,y)=>s+y,0)/v.length)]).sort((a,b)=>b[2]-a[2])};
  return`<h1>My Performance</h1><form class=card data-form=perf><select name=platform><option>LinkedIn<option>Instagram</select><input name=date type=date><input name=likes type=number min=0 placeholder="Likes"><input name=comments type=number min=0 placeholder="Comments"><input name=shares type=number min=0 placeholder="Shares"><input name=views type=number min=0 placeholder="Views"><input name=topic placeholder="Topic"><textarea name=caption placeholder="My published post text" required></textarea><button>Save</button></form>
  <div class=card><h3>Avg score by my hook type</h3>${tbl(['Hook','Posts','Avg score'],grp('hookCat'))}</div><div class=card><h3>By format</h3>${tbl(['Format','Posts','Avg score'],grp('format'))}</div><div class=card><h3>By topic</h3>${tbl(['Topic','Posts','Avg score'],grp('topic'))}</div>
  <div class=card>${tbl(['Date','Hook','Likes','Comments',''],r.map(x=>[x.date,esc(x.hook),x.likes,x.comments,`<button class=s data-act=delPerf data-id=${x.id}>Delete</button>`]))}</div><p class=mut>Score = likes + 2×comments + 3×shares. Small samples are anecdotes, not proof.</p>`},
@@ -80,14 +82,15 @@ async creator(f){const d=Object.fromEntries(new FormData(f)),o=d.id?await DB.get
 async post(f){const d=Object.fromEntries(new FormData(f)),file=f.image.files[0];if(file&&file.size>1.5e6)return toast('Image over 1.5 MB',1);
  if(!d.caption.trim()&&!file&&!d.url)return toast('Add a caption, URL or image',1);const cn=d.url?canon(d.url):'';
  if(cn&&(await DB.all('posts')).some(p=>p.canon===cn))return toast('Duplicate: this URL is already imported',1);
- const p={id:uid(),creatorId:d.creatorId,platform:d.platform,url:d.url,canon:cn,caption:d.caption,postDate:d.postDate,likes:num(d.likes),comments:num(d.comments),shares:num(d.shares),views:num(d.views),mediaType:d.mediaType,image:file?await readImg(file):'',imported:Date.now()};
+ const cap=norm(d.caption);if(cap.length>20&&(await DB.all('posts')).some(q=>q.platform===d.platform&&norm(q.caption)===cap))return toast('Duplicate: this caption is already imported',1);
+ const p={id:uid(),creatorId:d.creatorId,platform:d.platform,url:d.url,canon:cn,caption:d.caption,postDate:d.postDate,likes:nn(d.likes),comments:nn(d.comments),shares:nn(d.shares),views:nn(d.views),mediaType:d.mediaType,image:file?await readImg(file):'',imported:Date.now()};
  await analyse(p);toast('Saved & analysed');render()},
 pfilter(f){sessionStorage.pf=JSON.stringify(Object.fromEntries(new FormData(f)));render()},hfilter(f){sessionStorage.hf=JSON.stringify(Object.fromEntries(new FormData(f)));render()},
 async connect(f){const d=Object.fromEntries(new FormData(f));if(!d.key.trim())return toast('Enter your app password',1);const b=f.querySelector('button');b.disabled=true;b.textContent='Connecting…';
  try{await AI.connect(d.key.trim());toast('Gemini connected')}catch(e){toast(/fetch/i.test(e.message)?'Server not reachable':e.message,1)}render()},
 async base(f){localStorage.apiBase=new FormData(f).get('base').replace(/\/$/,'');render()},
 async style(f){await DB.put('user_preferences',{id:'style',text:new FormData(f).get('text')});toast('Style saved')},
-async perf(f){const d=Object.fromEntries(new FormData(f)),a=Analyzer.analyze({caption:d.caption});await DB.put('performance_records',{platform:d.platform,date:d.date,likes:num(d.likes),comments:num(d.comments),shares:num(d.shares),views:num(d.views),topic:d.topic||a.keywords[0]||'',caption:d.caption,hook:a.hook,hookCat:a.hookCat,format:a.format,at:Date.now()});toast('Saved');render()},
+async perf(f){const d=Object.fromEntries(new FormData(f)),a=Analyzer.analyze({caption:d.caption});await DB.put('performance_records',{platform:d.platform,date:d.date,likes:nn(d.likes),comments:nn(d.comments),shares:nn(d.shares),views:nn(d.views),topic:d.topic||a.keywords[0]||'',caption:d.caption,hook:a.hook,hookCat:a.hookCat,format:a.format,at:Date.now()});toast('Saved');render()},
 async gen(f){const d=Object.fromEntries(new FormData(f)),b=f.querySelector('button');await ai(b,async()=>{
  const[A,st]=await Promise.all([sums(),DB.get('user_preferences','style')]);
  const prompt=`You are a ghostwriter. Write ORIGINAL ${d.platform} content. Never copy any creator's wording.
@@ -121,4 +124,4 @@ document.addEventListener('click',e=>{const n=e.target.closest('[data-nav]');if(
  const a=e.target.closest('[data-act]');if(a)ACT[a.dataset.act]?.(a.dataset,a)});
 document.addEventListener('submit',e=>{const f=e.target.closest('form[data-form]');if(f){e.preventDefault();FORM[f.dataset.form](f)}});
 document.addEventListener('change',async e=>{if(e.target.id==='imp'){try{await DB.importAll(JSON.parse(await e.target.files[0].text()));toast('Backup restored');render()}catch(x){toast(x.message,1)}}});
-DB.open().then(render).catch(e=>$('#main').textContent='Database error: '+e.message);
+typeof VX!=='undefined'&&VX.install();DB.open().then(render).catch(e=>$('#main').textContent='Database error: '+e.message);
