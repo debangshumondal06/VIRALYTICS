@@ -1,22 +1,21 @@
 :root {
-         /* Violet-Dark-Blue Palette */
          --bg: #090814;
          --card: #131124;
-         --card-hover: #191630;
+         --card-h: #191630;
          --line: #242040;
          --tx: #ecebfa;
          --mut: #8e88b8;
          --ac: #8b5cf6;
-         --ac-hover: #a78bfa;
+         --ac-h: #a78bfa;
          --ac-glow: rgba(139, 92, 246, 0.35);
-         --success: #34d399;
-         --danger: #f87171;
+         --ok: #34d399;
+         --bad: #f87171;
 }
 
-* {
+*,
+::before,
+::after {
          box-sizing: border-box;
-         /* Smooth transitions for interactive elements */
-         transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, color 0.2s ease;
 }
 
 body {
@@ -26,12 +25,28 @@ body {
          background: var(--bg);
          color: var(--tx);
          font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-         /* Subtle background radial gradient for ambient glow */
-         background-image: radial-gradient(circle at 50% 0%, #1a133d 0%, var(--bg) 70%);
-         background-attachment: fixed;
+         /* Optimized static radial background without layout recalculation on scroll */
+         background-image: radial-gradient(circle at 50% 0%, #1a133d 0%, var(--bg) 75%);
 }
 
-/* Sidebar Styling & Animations */
+/* Explicit Transition Targeting for 60/120fps rendering */
+aside a,
+.card,
+input,
+select,
+textarea,
+button,
+tbody tr,
+.tag,
+#toast {
+         transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1),
+                  background-color 0.15s linear,
+                  border-color 0.15s linear,
+                  box-shadow 0.15s linear,
+                  color 0.15s linear;
+}
+
+/* Sidebar Optimization */
 aside {
          width: 200px;
          padding: 16px 10px;
@@ -40,8 +55,8 @@ aside {
          top: 0;
          height: 100vh;
          flex: none;
-         background: rgba(9, 8, 20, 0.7);
-         backdrop-filter: blur(12px);
+         background: var(--bg);
+         contain: layout style;
 }
 
 aside b {
@@ -49,8 +64,7 @@ aside b {
          padding: 4px 10px 14px;
          letter-spacing: 2px;
          color: var(--ac);
-         text-shadow: 0 0 12px var(--ac-glow);
-         font-size: 12px;
+         font-size: 11px;
          text-transform: uppercase;
 }
 
@@ -62,22 +76,22 @@ aside a {
          cursor: pointer;
          text-decoration: none;
          margin-bottom: 2px;
+         will-change: transform;
 }
 
 aside a:hover {
-         background: var(--card-hover);
+         background: var(--card-h);
          color: var(--tx);
-         transform: translateX(4px);
+         transform: translate3d(4px, 0, 0);
 }
 
 aside a.on {
          background: rgba(139, 92, 246, 0.15);
          color: #fff;
          border-left: 3px solid var(--ac);
-         box-shadow: 0 0 15px var(--ac-glow);
 }
 
-/* Main Content Area */
+/* Content Area */
 main {
          flex: 1;
          padding: 24px;
@@ -89,9 +103,7 @@ h1 {
          margin: 0 0 16px;
          font-size: 22px;
          font-weight: 600;
-         background: linear-gradient(135deg, #ffffff 0%, var(--mut) 100%);
-         -webkit-background-clip: text;
-         -webkit-text-fill-color: transparent;
+         color: #fff;
 }
 
 h3 {
@@ -99,26 +111,27 @@ h3 {
          font-weight: 600;
 }
 
-/* Card Hover Elevation Effects */
+/* Hardware-Accelerated Hover Cards */
 .card {
          background: var(--card);
          border: 1px solid var(--line);
-         border-radius: 12px;
-         padding: 16px;
-         margin-bottom: 16px;
-         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+         border-radius: 10px;
+         padding: 14px;
+         margin-bottom: 14px;
+         contain: content;
+         will-change: transform;
 }
 
 .card:hover {
          border-color: rgba(139, 92, 246, 0.4);
-         transform: translateY(-2px);
-         box-shadow: 0 8px 25px rgba(139, 92, 246, 0.15);
+         transform: translate3d(0, -2px, 0);
+         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
 
 form.card {
          display: grid;
          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-         gap: 10px;
+         gap: 8px;
 }
 
 form.card textarea,
@@ -126,15 +139,15 @@ form.card .full {
          grid-column: 1 / -1;
 }
 
-/* Form Controls & Focus Glows */
+/* Input Optimizations */
 input,
 select,
 textarea {
-         background: rgba(9, 8, 20, 0.8);
+         background: #0d0b1a;
          color: var(--tx);
          border: 1px solid var(--line);
-         border-radius: 8px;
-         padding: 9px 12px;
+         border-radius: 6px;
+         padding: 8px 10px;
          font: inherit;
          width: 100%;
          outline: none;
@@ -144,47 +157,45 @@ input:focus,
 select:focus,
 textarea:focus {
          border-color: var(--ac);
-         box-shadow: 0 0 0 3px var(--ac-glow);
-         background: var(--bg);
+         box-shadow: 0 0 0 2px var(--ac-glow);
 }
 
 textarea {
          min-height: 90px;
 }
 
-/* Interactive Buttons */
+/* GPU-Accelerated Buttons */
 button {
-         background: linear-gradient(135deg, var(--ac) 0%, #6d28d9 100%);
+         background: var(--ac);
          color: #fff;
          border: 0;
-         border-radius: 8px;
-         padding: 9px 16px;
+         border-radius: 6px;
+         padding: 8px 14px;
          font-weight: 600;
          cursor: pointer;
-         box-shadow: 0 2px 10px var(--ac-glow);
+         will-change: transform;
 }
 
 button:hover {
-         background: linear-gradient(135deg, var(--ac-hover) 0%, var(--ac) 100%);
-         transform: translateY(-1px);
-         box-shadow: 0 4px 15px rgba(139, 92, 246, 0.5);
+         background: var(--ac-h);
+         transform: translate3d(0, -1px, 0);
+         box-shadow: 0 4px 12px var(--ac-glow);
 }
 
 button:active {
-         transform: translateY(0);
+         transform: translate3d(0, 0, 0);
 }
 
 button.s {
          background: var(--line);
          color: var(--tx);
-         padding: 5px 10px;
+         padding: 4px 8px;
          font-weight: 400;
-         box-shadow: none;
 }
 
 button.s:hover {
          background: rgba(139, 92, 246, 0.25);
-         color: #fff;
+         box-shadow: none;
 }
 
 button:disabled {
@@ -194,7 +205,7 @@ button:disabled {
          box-shadow: none;
 }
 
-/* Table Hover Effects */
+/* Fast Table Rendering */
 table {
          width: 100%;
          border-collapse: collapse;
@@ -203,7 +214,7 @@ table {
 td,
 th {
          text-align: left;
-         padding: 10px 8px;
+         padding: 8px 6px;
          border-bottom: 1px solid var(--line);
          vertical-align: top;
 }
@@ -211,101 +222,94 @@ th {
 th {
          color: var(--mut);
          font-weight: 500;
-         text-transform: uppercase;
          font-size: 12px;
-         letter-spacing: 0.5px;
 }
 
 tbody tr:hover {
-         background: rgba(139, 92, 246, 0.05);
+         background: rgba(139, 92, 246, 0.06);
 }
 
-/* Grid & Stats */
+/* Grid & Text Utility */
 .grid {
          display: grid;
          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-         gap: 12px;
+         gap: 10px;
 }
 
 .stat {
-         font-size: 28px;
+         font-size: 26px;
          font-weight: 700;
          color: #fff;
-         text-shadow: 0 0 15px var(--ac-glow);
 }
 
 .mut {
          color: var(--mut);
 }
 
-/* Interactive Tags */
+/* Fast Tag Animations */
 .tag {
          display: inline-block;
-         background: rgba(139, 92, 246, 0.15);
-         border: 1px solid rgba(139, 92, 246, 0.3);
-         color: #ddd6fe;
-         border-radius: 12px;
-         padding: 2px 10px;
-         margin: 2px;
+         background: var(--line);
+         border-radius: 10px;
+         padding: 1px 8px;
+         margin: 1px;
          font-size: 12px;
+         will-change: transform;
 }
 
 .tag:hover {
          background: var(--ac);
          color: #fff;
          transform: scale(1.05);
-         box-shadow: 0 0 10px var(--ac-glow);
 }
 
 .out {
          white-space: pre-wrap;
 }
 
-/* Toast Component & Entry Animation */
+/* GPU Toast Overlay */
 #toast {
          position: fixed;
          bottom: 20px;
          right: 20px;
          background: var(--card);
          border: 1px solid var(--ac);
-         padding: 12px 18px;
-         border-radius: 10px;
+         padding: 10px 14px;
+         border-radius: 8px;
          display: none;
-         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-         backdrop-filter: blur(8px);
+         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+         will-change: transform, opacity;
 }
 
 #toast.show {
          display: block;
-         animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+         animation: toastIn 0.2s cubic-bezier(0, 0, 0.2, 1) forwards;
 }
 
 #toast.err {
-         border-color: var(--danger);
-         box-shadow: 0 0 15px rgba(248, 113, 113, 0.2);
+         border-color: var(--bad);
 }
 
 .ok {
-         color: var(--success);
+         color: var(--ok);
 }
 
 .bad {
-         color: var(--danger);
+         color: var(--bad);
 }
 
-@keyframes slideUp {
+@keyframes toastIn {
          from {
                   opacity: 0;
-                  transform: translateY(15px);
+                  transform: translate3d(0, 10px, 0);
          }
 
          to {
                   opacity: 1;
-                  transform: translateY(0);
+                  transform: translate3d(0, 0, 0);
          }
 }
 
-/* Mobile Responsive */
 @media (max-width: 700px) {
          body {
                   flex-direction: column;
@@ -318,7 +322,6 @@ tbody tr:hover {
                   display: flex;
                   overflow-x: auto;
                   border-right: 0;
-                  border-bottom: 1px solid var(--line);
          }
 
          aside b {

@@ -17,7 +17,7 @@ async function analyse(p){const a=Analyzer.analyze(p);p.hashtags=a.hashtags;p.ke
  const old=await DB.get('post_analyses',p.id);if(old?.ai)a.ai=old.ai;await DB.put('post_analyses',a);
  if(a.hook){const h=await DB.get('hooks',p.id)||{id:p.id,fav:false,notes:''};Object.assign(h,{text:a.hook,cat:a.hookCat,creatorId:p.creatorId,url:p.url,topic:a.keywords[0]||''});await DB.put('hooks',h)}}
 const cname=(cs,id)=>esc(cs.find(c=>c.id===id)?.name||'—');
-const aiOn=async()=>{const s=await AI.status();if(!s.connected){toast(s.reachable?'Connect Gemini in Settings first':'Proxy not reachable: start the backend (see README)',1);return false}return true};
+const aiOn=async()=>{const s=await AI.status();if(!s.connected){toast(s.reachable?'Connect Gemini in Settings first':'Server not reachable',1);return false}return true};
 async function ai(btn,fn){if(busy)return;busy=true;const t=btn?.textContent;if(btn){btn.disabled=true;btn.textContent='Working…'}
  try{if(await aiOn())await fn()}catch(e){toast(e.message,1)}busy=false;if(btn){btn.disabled=false;btn.textContent=t}}
 const sums=async()=>{const[P,A]=[await DB.all('posts'),await DB.all('post_analyses')],r=ratios(P);
@@ -64,10 +64,9 @@ async Performance(){const r=(await DB.all('performance_records')).sort((a,b)=>b.
  <div class=card><h3>Avg score by my hook type</h3>${tbl(['Hook','Posts','Avg score'],grp('hookCat'))}</div><div class=card><h3>By format</h3>${tbl(['Format','Posts','Avg score'],grp('format'))}</div><div class=card><h3>By topic</h3>${tbl(['Topic','Posts','Avg score'],grp('topic'))}</div>
  <div class=card>${tbl(['Date','Hook','Likes','Comments',''],r.map(x=>[x.date,esc(x.hook),x.likes,x.comments,`<button class=s data-act=delPerf data-id=${x.id}>Delete</button>`]))}</div><p class=mut>Score = likes + 2×comments + 3×shares. Small samples are anecdotes, not proof.</p>`},
 async Settings(){const s=await AI.status(),st=(await DB.get('user_preferences','style'))?.text||'';return`<h1>Settings</h1>
- <div class=card><h3>AI connection: Gemini</h3><p>Proxy: <span class="${s.reachable?'ok':'bad'}">${s.reachable?'reachable':'not reachable'}</span> · Gemini: <span class="${s.connected?'ok':'bad'}">${s.connected?'connected ('+esc(s.model)+')':'not connected'}</span></p>
- <form data-form=connect style="display:grid;gap:8px"><input name=key type=password placeholder="Paste your Gemini API key" autocomplete=off><input name=model placeholder="Model (default gemini-2.5-flash)" value="${esc(s.model||'')}"><div><button>Connect</button> <button type=button class=s data-act=disconnect>Disconnect</button></div></form>
- <p class=mut>The key is sent once to your local proxy and held in its memory; it is never stored in the browser or in code. Get a key at aistudio.google.com.</p>
- <form data-form=base style="display:flex;gap:8px"><input name=base placeholder="Proxy URL" value="${esc(AI.base())}"><button class=s>Set proxy URL</button></form></div>
+ <div class=card><h3>AI connection: Gemini</h3><p>Server: <span class="${s.reachable?'ok':'bad'}">${s.reachable?'reachable':'not reachable'}</span> · Gemini key on server: <span class="${s.keySet?'ok':'bad'}">${s.keySet?'set':'missing'}</span> · Unlocked: <span class="${s.connected?'ok':'bad'}">${s.connected?'yes ('+esc(s.model)+')':'no'}</span></p>
+ <form data-form=connect style="display:grid;gap:8px"><input name=key type=password placeholder="Your app password" autocomplete=current-password><div><button>Connect</button> <button type=button class=s data-act=disconnect>Disconnect</button></div></form>
+ <p class=mut>Your Gemini key stays in Vercel's environment variables and never reaches the browser. This password only unlocks the AI features on this device.</p></div>
  <div class=card><h3>My writing style profile</h3><form data-form=style><textarea name=text style="width:100%;min-height:140px" placeholder="Paste 2–5 examples of your own writing. The generator will match this voice.">${esc(st)}</textarea><button>Save style</button></form></div>
  <div class=card><h3>Backup</h3><button data-act=export>Export JSON</button> <input type=file id=imp accept=.json style="width:auto"> <button class=s data-act=clear>Delete all data</button></div>`}};
 const AFTER={Dashboard:async()=>{if(!window.Chart)return;const g=groupBy(await DB.all('post_analyses'),a=>a.hookCat,{});new Chart($('#ch'),{type:'bar',data:{labels:g.map(x=>x.k),datasets:[{label:'Posts',data:g.map(x=>x.n),backgroundColor:'#7c9cff'}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{precision:0}}}}})}};
@@ -84,8 +83,8 @@ async post(f){const d=Object.fromEntries(new FormData(f)),file=f.image.files[0];
  const p={id:uid(),creatorId:d.creatorId,platform:d.platform,url:d.url,canon:cn,caption:d.caption,postDate:d.postDate,likes:num(d.likes),comments:num(d.comments),shares:num(d.shares),views:num(d.views),mediaType:d.mediaType,image:file?await readImg(file):'',imported:Date.now()};
  await analyse(p);toast('Saved & analysed');render()},
 pfilter(f){sessionStorage.pf=JSON.stringify(Object.fromEntries(new FormData(f)));render()},hfilter(f){sessionStorage.hf=JSON.stringify(Object.fromEntries(new FormData(f)));render()},
-async connect(f){const d=Object.fromEntries(new FormData(f));if(!d.key.trim())return toast('Paste your API key first',1);const b=f.querySelector('button');b.disabled=true;b.textContent='Connecting…';
- try{await AI.connect(d.key.trim(),d.model.trim());toast('Gemini connected')}catch(e){toast(/fetch/i.test(e.message)?'Proxy not reachable: start the backend':e.message,1)}render()},
+async connect(f){const d=Object.fromEntries(new FormData(f));if(!d.key.trim())return toast('Enter your app password',1);const b=f.querySelector('button');b.disabled=true;b.textContent='Connecting…';
+ try{await AI.connect(d.key.trim());toast('Gemini connected')}catch(e){toast(/fetch/i.test(e.message)?'Server not reachable':e.message,1)}render()},
 async base(f){localStorage.apiBase=new FormData(f).get('base').replace(/\/$/,'');render()},
 async style(f){await DB.put('user_preferences',{id:'style',text:new FormData(f).get('text')});toast('Style saved')},
 async perf(f){const d=Object.fromEntries(new FormData(f)),a=Analyzer.analyze({caption:d.caption});await DB.put('performance_records',{platform:d.platform,date:d.date,likes:num(d.likes),comments:num(d.comments),shares:num(d.shares),views:num(d.views),topic:d.topic||a.keywords[0]||'',caption:d.caption,hook:a.hook,hookCat:a.hookCat,format:a.format,at:Date.now()});toast('Saved');render()},
@@ -123,4 +122,3 @@ document.addEventListener('click',e=>{const n=e.target.closest('[data-nav]');if(
 document.addEventListener('submit',e=>{const f=e.target.closest('form[data-form]');if(f){e.preventDefault();FORM[f.dataset.form](f)}});
 document.addEventListener('change',async e=>{if(e.target.id==='imp'){try{await DB.importAll(JSON.parse(await e.target.files[0].text()));toast('Backup restored');render()}catch(x){toast(x.message,1)}}});
 DB.open().then(render).catch(e=>$('#main').textContent='Database error: '+e.message);
-
